@@ -1,0 +1,72 @@
+[
+  {
+    "type": "userEmail",
+    "email": "mike@good-sign.co.il"
+  },
+  {
+    "type": "signature",
+    "left": "44px",
+    "top": "133px",
+    "width": "170px",
+    "height": "91px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_16-41-16.pdf"
+  },
+  {
+    "type": "signature",
+    "left": "113px",
+    "top": "998px",
+    "width": "183px",
+    "height": "35px",
+    "pageNumber": "2",
+    "fileName": "2024-11-25_16-41-16.pdf"
+  },
+  {
+    "type": "text",
+    "left": "383px",
+    "top": "133px",
+    "width": "150px",
+    "height": "15px",
+    "pageNumber": "1",
+    "instruction": "שם החותם",
+    "fileName": "2024-11-25_16-41-16.pdf"
+  },
+  {
+    "type": "date",
+    "left": "128px",
+    "top": "303px",
+    "width": "100px",
+    "height": "30px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_16-41-16.pdf"
+  },
+  {
+    "type": "checkbox",
+    "left": "540px",
+    "top": "254px",
+    "width": "20px",
+    "height": "20px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_16-41-16.pdf"
+  },
+  {
+    "type": "radio",
+    "left": "350px",
+    "top": "255px",
+    "width": "20px",
+    "height": "20px",
+    "pageNumber": "1",
+    "name": "group1",
+    "fileName": "2024-11-25_16-41-16.pdf"
+  },
+  {
+    "type": "radio",
+    "left": "304px",
+    "top": "252px",
+    "width": "20px",
+    "height": "20px",
+    "pageNumber": "1",
+    "name": "group1",
+    "fileName": "2024-11-25_16-41-16.pdf"
+  }
+]

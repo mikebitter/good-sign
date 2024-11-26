@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>חתימה על PDF</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+    body {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        height: 100vh;
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background-color:#4b6cb7 ; /* צבע הרקע של המסך */
+    }
+
+        #controls {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 10px;
+            height: fit-content;
+            margin: 0;
+            width: 18%;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #e6e6e6;
+        }
+
+        #pdf-viewer-container {
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        #pdf-viewer {
+            position: relative;
+            border: 1px solid #000;
+            width: 79%;
+            height: 96vh;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+            margin-left: 10px;
+            margin-top: -5px;
+        }
+
+        .signature-canvas, .date-input, .text-box {
+            position: absolute;
+            width: 300px;
+            height: 150px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 2px solid blue;
+            resize: both;
+            overflow: auto;
+            pointer-events: auto; /* וודא שאירועים מופעלים על הקנבס */
+        }
+
+        .selected {
+            border: 2px solid red;
+        }
+
+        .page-canvas {
+            position: relative;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<div id="controls">
+    <div style="margin-bottom: 15px;">
+        <label for="signer-name" style="display: block; margin-bottom: 5px;">Name of the signer:</label>
+        <input type="text" id="signer-name" placeholder="Enter your name here" style="width: 100%; padding: 5px; box-sizing: border-box;">
+    </div>
+    <div style="margin-bottom: 15px;">
+        <label for="signer-email" style="display: block; margin-bottom: 5px;">Email:</label>
+        <input type="email" id="signer-email" placeholder="Enter signer email here" style="width: 100%; padding: 5px; box-sizing: border-box;">
+    </div>
+    <button id="finish-and-send-btn" style="background-color: #007bff; color: white; border: none; padding: 10px; width: 100%; cursor: pointer;">Finish and Send</button>
+</div>
+
+
+
+
+    <div id="pdf-viewer-container">
+<!-- הוסף כאן את קוד ה-HTML עבור המודאל -->
+<!-- הוסף כאן את קוד ה-HTML עבור המודאל -->
+<div id="signature-modal" style="display:none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1001;">
+    <div style="background-color:white; border:1px solid #ccc; padding: 20px;">
+        <h2>Draw your signature</h2>
+        <canvas id="signature-canvas" width="600" height="300" style="border: 1px solid black;"></canvas>
+        <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+            <button id="clear-signature" style="width: 45%; height: 30px;">Clear Signature</button>
+            <button id="close-modal" style="width: 45%; height: 30px;">Apply and Close</button>
+        </div>
+    </div>
+</div>
+
+    
+
+    <div id="pdf-viewer"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+        let pdfDoc = null;
+        let documentId = window.location.pathname.split('/').pop();
+        let isDrawing = false;
+        let capturedImages = [];
+        let currentPage = 1;
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+        function loadPDFAndFields(documentId) {
+            fetch(`/saved_documents/${documentId}`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const pdfData = event.target.result;
+                        displayPDF(pdfData);
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(error => console.error('Error loading PDF:', error));
+        }
+
+        function displayPDF(pdfData) {
+            const loadingTask = pdfjsLib.getDocument({ data: atob(pdfData.split(',')[1]) });
+            loadingTask.promise.then(function(pdf) {
+                pdfDoc = pdf;
+                renderAllPages(); // נרנדר את כל העמודים
+                loadFields(documentId); // טען את השדות לאחר הרינדור
+            });
+        }
+
+        function renderAllPages() {
+            const viewer = document.getElementById('pdf-viewer');
+            viewer.innerHTML = ''; 
+
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                renderPage(pageNum); // רינדור של כל עמוד
+            }
+        }
+
+        function renderPage(pageNum) {
+    pdfDoc.getPage(pageNum).then(function(page) {
+        const viewer = document.getElementById('pdf-viewer');
+        const viewport = page.getViewport({ scale: 1.0 });
+
+        const containerWidth = viewer.clientWidth;
+        const scale = containerWidth / viewport.width;
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width * scale;
+        canvas.height = viewport.height * scale;
+        canvas.className = 'page-canvas';
+        canvas.setAttribute('data-page-number', pageNum); // הגדרת מספר העמוד
+
+        const pageWrapper = document.createElement('div');
+        pageWrapper.className = 'page-wrapper';
+        pageWrapper.style.display = 'flex';
+        pageWrapper.style.justifyContent = 'center';
+        pageWrapper.style.position = 'relative';
+        pageWrapper.setAttribute('data-page-number', pageNum); // הגדרת מספר עמוד
+
+        pageWrapper.appendChild(canvas);
+        viewer.appendChild(pageWrapper);
+
+        const renderContext = {
+            canvasContext: context,
+            viewport: page.getViewport({ scale })
+        };
+
+        page.render(renderContext);
+    });
+}
+
+
+function loadFields(documentId) {
+    fetch(`/saved_documents/${documentId}_document_fields.json`)
+        .then(response => response.json())
+        .then(fields => {
+            console.log("שדות שנקראו מה-JSON:", fields); // בדיקה שהנתונים נטענים נכון
+            addFieldsToPDF(fields);
+        })
+        .catch(error => console.error('שגיאה בטעינת ה-JSON:', error));
+}
+
+
+       function addFieldsToPDF(fields) {
+    const pdfViewer = document.getElementById('pdf-viewer');
+
+    fields.forEach(field => {
+        let element;
+        
+        if (field.type === 'signature') {
+            element = createSignatureBox();
+         element.addEventListener('click', () => {
+    console.log('Signature box clicked.');
+
+    // מחיקת חתימה קיימת אם יש
+    const context = element.getContext('2d');
+    context.clearRect(0, 0, element.width, element.height);
+    console.log('Existing signature cleared.');
+
+    // פתיחת מודאל לציור חדש
+    openDrawingCanvas(
+        parseFloat(field.left),
+        parseFloat(field.top),
+        parseFloat(field.width),
+        parseFloat(field.height)
+    );
+});
+
+            console.log("Field data collected for:", field.type, "Data:", field); // הוסף כאן לוג עבור חתימה
+        } else if (field.type === 'text') {
+            element = createTextBox();
+element.placeholder = field.instruction || 'כאן יש להזין טקסט'; // הוספת placeholder מההוראה ב-JSON 
+           console.log("Field data collected for:", field.type, "Data:", field); // הוסף כאן לוג עבור טקסט
+        } else if (field.type === 'date') {
+            element = createDateBox();
+            console.log("Field data collected for:", field.type, "Data:", field); // הוסף כאן לוג עבור תאריך
+        } else if (field.type === 'checkbox') {
+            element = createCheckbox();
+            console.log("Field data collected for:", field.type, "Data:", field); // הוסף כאן לוג עבור צ'קבוקס
+     } else if (field.type === 'radio') {
+    element = createRadioButton(field.name, field); // מעביר את המידע מה-JSON
+    console.log("Field data collected for:", field.type, "Data:", field); // לוג נוסף לאימות הנתונים
+}
+
+
+        if (element) {
+            element.style.position = 'absolute';
+            element.style.left = field.left;
+            element.style.top = field.top;
+            element.style.width = field.width || '20px';
+            element.style.height = field.height || '20px';
+            const pageNumber = field.pageNumber;
+
+            const pageWrapper = document.querySelector(`.page-wrapper[data-page-number='${pageNumber}']`);
+            if (pageWrapper) {
+                pageWrapper.appendChild(element);
+            } else {
+                console.error(`Page number ${pageNumber} not found for field:`, field);
+            }
+        }
+    });
+
+
+    console.log("Fields successfully added to the PDF viewer.");
+
+    // קריאה לפונקציה להוספת מאזין לפופאפ של תיבת הטקסט
+    addTextModalListener();
+}
+
+
+
+function addTextModalListener() {
+    document.querySelectorAll('.text-box').forEach(textBox => {
+        textBox.addEventListener('click', () => {
+            // הסרת מחלקת 'selected' מתיבות אחרות
+            document.querySelectorAll('.text-box').forEach(box => box.classList.remove('selected'));
+
+            // סימון התיבה הנוכחית כ-selected
+            textBox.classList.add('selected');
+
+            // הצגת ה-Modal
+            const modal = document.getElementById('textModal');
+            const textInput = document.getElementById('textInput');
+            const textInstruction = document.getElementById('textInstruction');
+
+            // קבלת ההוראה מתוך placeholder
+            const instruction = textBox.placeholder || 'כאן יש להזין טקסט'; // אם ה-placeholder ריק, הצג טקסט ברירת מחדל
+            textInstruction.textContent = instruction; // הצגת ההוראה מעל התיבה ב-Modal
+
+            // עדכון תוכן המודאל עם התוכן הקיים בתיבה
+            textInput.value = textBox.value || '';
+            modal.style.display = 'block';
+
+            // שמירת התיבה שנבחרה
+            currentTextBox = textBox;
+        });
+    });
+}
+
+
+        function createSignatureBox() {
+            const canvasWrapper = document.createElement('canvas');
+            canvasWrapper.className = 'signature-canvas';
+            canvasWrapper.style.border = '2px solid blue'; // מסגרת כחולה לשדה החתימה
+            enableDrawing(canvasWrapper); // הפעלת אפשרות הציור על קנבס זה
+            return canvasWrapper;
+        }
+
+      function createTextBox() {
+    const textBox = document.createElement('textarea');
+    textBox.className = 'text-box';
+    textBox.placeholder = 'הכנס טקסט כאן'; // הוספת placeholder לטקסט
+    return textBox;
+}
+
+
+        function createDateBox() {
+            const dateInput = document.createElement('input');
+            dateInput.className = 'date-input';
+            dateInput.placeholder = 'select date';
+            flatpickr(dateInput, { dateFormat: "d/m/Y" });
+            return dateInput;
+        }
+function createCheckbox() {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'checkbox';
+    checkbox.style.width = '20px';
+    checkbox.style.height = '20px';
+    return checkbox;
+}
+
+function createRadioButton(radioName, field) {
+    const radioWrapper = document.createElement('div');
+    radioWrapper.style.position = 'absolute';
+    radioWrapper.style.left = field.left; // מיקום לפי JSON
+    radioWrapper.style.top = field.top; // מיקום לפי JSON
+    radioWrapper.style.width = field.width || '20px';
+    radioWrapper.style.height = field.height || '20px';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = radioName;  // קביעת שם הקבוצה של כפתור הרדיו
+    radio.className = 'radio-button';
+    radio.style.width = field.width || '20px';
+    radio.style.height = field.height || '20px';
+
+    radioWrapper.appendChild(radio);
+    return radioWrapper;
+}
+
+        document.addEventListener('DOMContentLoaded', function () {
+    loadPDFAndFields(documentId);
+ 
+
+// מאזין עבור כפתור סגירת המודאל של תיבת הטקסט
+document.getElementById('textCloseBtn').addEventListener('click', function() {
+    const textInput = document.getElementById('textInput'); // תיבת הטקסט במודאל
+    const currentTextBox = document.querySelector('.text-box.selected'); // תיבת הטקסט שנבחרה במסך הראשי
+
+    if (currentTextBox) {
+        const textValue = textInput.value.trim(); // הסר רווחים עודפים מהתחלה וסוף
+
+        // עדכון התוכן בתיבה במסך הראשי
+        currentTextBox.value = textValue.slice(0, 50); // וודא שהתוכן מוגבל ל-50 תווים
+
+        // חישוב גודל גופן בהתאם לרוחב וגובה התיבה
+        const boxHeight = parseFloat(currentTextBox.style.height);
+        const boxWidth = parseFloat(currentTextBox.style.width);
+        const calculatedFontSize = Math.min(boxHeight * 0.9, boxWidth / 10); // התאמת הגופן לגובה ולרוחב
+
+        currentTextBox.style.fontSize = `${calculatedFontSize}px`;
+        currentTextBox.style.fontFamily = 'Arial, sans-serif';
+    }
+
+    // איפוס שדה הקלט במודאל וסגירת המודאל
+    textInput.value = '';
+    textInput.style.width = '100%'; // החזרה לרוחב ברירת המחדל
+    document.getElementById('textModal').style.display = 'none'; // סגירת המודאל
+});
+  
+ document.getElementById('clear-signature').addEventListener('click', function() {
+        const canvas = document.getElementById('signature-canvas');
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height); // מנקה את הקנבס כולו
+        console.log('חתימה נמחקה');
+    });
+
+    // שליפת ההגדרות משרת
+    fetch('/settings')
+        .then(response => response.json())
+        .then(settings => {
+            const creatorEmail = settings.creatorEmail;
+            window.creatorEmail = creatorEmail;
+        })
+        .catch(error => {
+            console.error('Error fetching settings:', error);
+        });
+
+document.getElementById('close-modal').addEventListener('click', function() {
+    const modalCanvas = document.getElementById('signature-canvas'); // קנבס במודאל
+    const signatureBox = document.querySelector('.signature-canvas.selected'); // תיבת החתימה שנבחרה
+
+    if (signatureBox) {
+        const modalContext = modalCanvas.getContext('2d');
+        const signatureContext = signatureBox.getContext('2d');
+        const img = new Image();
+
+        // הגדרת מקור התמונה מתוך תוכן המודאל
+        img.src = modalCanvas.toDataURL('image/png');
+        
+        img.onload = function() {
+            // נקה את תיבת החתימה לפני הציור
+            signatureContext.clearRect(0, 0, signatureBox.width, signatureBox.height);
+            
+            // צייר את התמונה מתיבת המודאל בגודל המתאים
+            signatureContext.drawImage(img, 0, 0, signatureBox.width, signatureBox.height);
+        };
+    }
+
+    document.getElementById('signature-modal').style.display = 'none'; // סגור את המודאל
+    console.log('חתימה הועברה לתיבת החתימה וסגרנו את המודאל.');
+});
+
+ 
+// פונקציה להוספת השדות על הקנבס
+function addFieldsToCanvas(context, pageNumber) {
+    const fields = document.querySelectorAll(`[data-page-number="${pageNumber}"]`);
+
+    fields.forEach(field => {
+        const type = field.className;
+        const left = parseFloat(field.style.left);
+        const top = parseFloat(field.style.top);
+        const width = parseFloat(field.style.width);
+        const height = parseFloat(field.style.height);
+
+        if (type.includes('signature-canvas')) {
+            // מקבעים את המיקום היחסי של הקנבס על גבי הדף הנוכחי
+            const fieldRect = field.getBoundingClientRect();
+            const canvasRect = context.canvas.getBoundingClientRect();
+            const offsetX = fieldRect.left - canvasRect.left;
+            const offsetY = fieldRect.top - canvasRect.top;
+            
+            // מציירים את התוכן של הקנבס הנבחר על הקנבס של הדף
+            context.drawImage(field, offsetX, offsetY, field.width, field.height);
+        } else if (type.includes('text-box')) {
+            // העתק טקסט
+            context.font = '16px Arial';
+            context.fillStyle = 'black';
+            context.fillText(field.value, left, top + 16);
+        } else if (type.includes('checkbox')) {
+            // העתק Checkbox
+            context.strokeRect(left, top, width, height);
+            if (field.checked) {
+                context.beginPath();
+                context.moveTo(left, top);
+                context.lineTo(left + width, top + height);
+                context.moveTo(left + width, top);
+                context.lineTo(left, top + height);
+                context.stroke();
+            }
+        } else if (type.includes('radio-button')) {
+            // העתק Radio Button
+            context.beginPath();
+            context.arc(left + width / 2, top + height / 2, width / 2, 0, 2 * Math.PI);
+            context.stroke();
+            if (field.querySelector('input').checked) {
+                context.beginPath();
+                context.arc(left + width / 2, top + height / 2, width / 4, 0, 2 * Math.PI);
+                context.fill();
+            }
+        }
+    });
+}
+        });
+
+
+function enableDrawing() {
+    document.querySelectorAll('.signature-canvas').forEach(canvas => {
+        canvas.width = canvas.offsetWidth; // התאמת גודל הקנבס לרוחב המלא של הקנבס
+        canvas.height = canvas.offsetHeight; // התאמת גובה הקנבס לגובה המלא של הקנבס
+        const context = canvas.getContext('2d');
+        context.lineWidth = 5; // עובי הקו
+        context.strokeStyle = 'blue'; // צבע הקו
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+    });
+}
+
+function startDrawing(event) {
+    isDrawing = true; // הפעלת מצב ציור
+    const canvas = event.target;
+    const context = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect(); // לקבלת המיקום והגבולות של הקנבס
+    context.beginPath();
+    context.moveTo(event.clientX - rect.left, event.clientY - rect.top); // שימוש בקואורדינטות יחסיות לגבולות הקנבס
+}
+
+function draw(event) {
+    if (!isDrawing) return;
+    const canvas = event.target;
+    const context = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect(); // לקבלת המיקום והגבולות של הקנבס
+    context.lineTo(event.clientX - rect.left, event.clientY - rect.top); // שימוש בקואורדינטות יחסיות לגבולות הקנבס
+    context.stroke();
+}
+
+function stopDrawing() {
+    isDrawing = false; // עצור את מצב הציור
+}
+
+
+        document.addEventListener('click', function (event) {
+            if (event.target.classList.contains('signature-canvas')) {
+                document.querySelectorAll('.signature-canvas').forEach(c => c.classList.remove('selected'));
+                event.target.classList.add('selected');
+            }
+        });
+   
+
+// הוספת מאזין לאירוע לחיצה על כפתור 'שמור מסמך חתום' ב-signature.html
+// פונקציה לאיסוף כל השדות, כולל checkbox, עם המידע הנחוץ
+document.getElementById('finish-and-send-btn').addEventListener('click', () => {
+    console.log('Finish and Send button clicked');
+
+    const signerNameInput = document.getElementById('signer-name');
+    const signerEmailInput = document.getElementById('signer-email');
+
+    const signerName = signerNameInput.value.trim();
+    const signerEmail = signerEmailInput.value.trim(); // אוסף את כתובת המייל של החותם
+
+    if (!signerName) {
+        alert('יש להכניס שם');
+        return; // עצור אם לא הוזן שם
+    }
+
+    const fields = [];
+
+    // איסוף כל השדות
+    document.querySelectorAll('.signature-canvas, .text-box, .date-input, .checkbox').forEach(element => {
+        const fieldData = {
+            type: element.className,
+            left: element.style.left || '0px',
+            top: element.style.top || '0px',
+            width: element.style.width || '20px',
+            height: element.style.height || '20px',
+            pageNumber: element.closest('.page-wrapper')?.getAttribute('data-page-number') || '1'
+        };
+
+        if (element.className.includes('text-box') || element.className.includes('date-input')) {
+            fieldData.value = element.value || '';
+        }
+
+        if (element.className.includes('signature-canvas')) {
+            const signatureImage = element.toDataURL('image/png');
+            fieldData.signatureBase64 = signatureImage;
+        }
+
+        if (element.className.includes('checkbox')) {
+            fieldData.checked = element.checked || false;
+        }
+
+        fields.push(fieldData);
+    });
+
+    console.log("נתוני השדות שנאספו:", fields);
+
+    const currentDateTime = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').slice(0, 19);
+    const fileName = `signed_document_${signerName}_${currentDateTime}`;
+
+    const payload = {
+        pdfData: documentId,
+        fields: JSON.stringify(fields),
+        fileName: fileName,
+        signerEmail: signerEmail // מוסיף את כתובת המייל של החותם
+    };
+
+    fetch('/saveSignedDocument', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('מסמך נשמר בהצלחה:', data);
+        alert('המסמך נשלח בהצלחה!');
+    })
+    .catch(error => {
+        console.error('שגיאה בשמירת המסמך:', error);
+    });
+});
+// כאן נגמר הסקריפט
+function openDrawingCanvas(left, top, width, height) {
+    console.log('Opening drawing canvas at:', left, top, 'with size:', width, height);
+
+    // הצג את המודאל
+    document.getElementById('signature-modal').style.display = 'block';
+
+    // קבע גודל קבוע לקנבס
+    const canvas = document.getElementById('signature-canvas');
+    const context = canvas.getContext('2d');
+    
+    // אתחול גודל הקנבס
+    const fixedWidth = 600;
+    const fixedHeight = 300;
+    canvas.width = fixedWidth;
+    canvas.height = fixedHeight;
+
+    // אפס את הקנבס
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // הגדרות ציור במודאל בלבד
+    context.lineWidth = 7; // עובי הקו
+    context.strokeStyle = 'blue'; // צבע הקו
+
+    let isDrawing = false;
+
+    canvas.addEventListener('mousedown', function(event) {
+        isDrawing = true;
+        context.beginPath();
+        context.moveTo(event.offsetX, event.offsetY);
+    });
+
+    canvas.addEventListener('mousemove', function(event) {
+        if (isDrawing) {
+            context.lineTo(event.offsetX, event.offsetY);
+            context.stroke();
+        }
+    });
+
+    canvas.addEventListener('mouseup', function() {
+        isDrawing = false;
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+        isDrawing = false;
+    });
+}
+
+ </script>
+
+<div id="textModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; max-width: 260px; background-color: white; border: 1px solid #ccc; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5); z-index: 1000; height: auto; padding: 10px; box-sizing: border-box;">
+    <p id="textInstruction" style="font-size: 14px; margin-bottom: 10px; font-family: Arial, sans-serif; color: #333;">הוראה לבחצוע</p>
+    <textarea id="textInput" maxlength="50" style="width: 100%; height: 60px; font-size: 14px; padding: 5px; resize: none; font-family: Arial, sans-serif; box-sizing: border-box;"></textarea>
+    <button id="textCloseBtn" style="width: 100%; height: 30px; font-size: 14px; box-sizing: border-box; margin-top: 5px;">Apply and Close</button>
+</div>
+
+
+</body>
+</html>

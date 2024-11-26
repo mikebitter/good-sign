@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>חתימה על PDF</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #controls {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 10px;
+            height: fit-content;
+            margin: 0;
+            width: 15%;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #e6e6e6;
+        }
+
+        #pdf-viewer-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin-top: 0px;
+        }
+
+        #pdf-viewer {
+            position: relative;
+            border: 1px solid #000;
+            width: 79%;
+            height: 96vh;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+            margin-left: 10px;
+            margin-top: 0px;
+        }
+
+        .signature-canvas, .date-input, .text-box {
+            position: absolute;
+            width: 300px;
+            height: 150px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 2px solid blue;
+            resize: both;
+            overflow: auto;
+        }
+
+        .selected {
+            border: 2px solid red;
+        }
+
+        .page-canvas {
+            position: relative;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="draw-btn">Draw</button>
+        <button id="clear-drawing-btn">Clear Selected Canvas</button>
+        <button id="capture-all-pages-with-fields-btn">Capture All Pages With Fields as JPG</button> <!-- לחצן חדש -->
+        <button id="save-to-pdf-btn">Save All Images to PDF</button> <!-- שמירה כ-PDF -->
+    </div>
+
+    <div id="pdf-viewer-container">
+        <div id="pdf-viewer">
+            <!-- כאן נטען את ה-PDF -->
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script> <!-- הוספת ספריית jsPDF -->
+    <script>
+        let pdfDoc = null;
+        let documentId = window.location.pathname.split('/').pop();
+        let isDrawing = false; // משתנה לניהול מצב הציור
+        let capturedImages = []; // רשימה לשמירת התמונות שנלכדו
+        let currentPage = 1; // משתנה לניהול העמוד הנוכחי
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+        function loadPDFAndFields(documentId) {
+            fetch(`/saved_documents/${documentId}.pdf`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const pdfData = event.target.result;
+                        displayPDF(pdfData);
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(error => console.error('Error loading PDF:', error));
+        }
+
+        function displayPDF(pdfData) {
+            const loadingTask = pdfjsLib.getDocument({ data: atob(pdfData.split(',')[1]) });
+            loadingTask.promise.then(function(pdf) {
+                pdfDoc = pdf;
+                renderPage(currentPage); // רינדור רק של העמוד הנוכחי
+                loadFields(documentId); // טען את השדות לאחר הרינדור
+            });
+        }
+
+        function renderPage(pageNum) {
+            pdfDoc.getPage(pageNum).then(function(page) {
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                canvas.className = 'page-canvas';
+
+                page.render({ canvasContext: context, viewport: viewport });
+
+                const viewer = document.getElementById('pdf-viewer');
+                viewer.innerHTML = ''; // ניקוי העמוד הקודם
+                viewer.appendChild(canvas);
+            });
+        }
+
+        function loadFields(documentId) {
+            fetch(`/saved_documents/${documentId}_document_fields.json`)
+                .then(response => response.json())
+                .then(fields => {
+                    addFieldsToPDF(fields);
+                })
+                .catch(error => console.error('Error loading document fields:', error));
+        }
+
+        function addFieldsToPDF(fields) {
+            const pdfViewer = document.getElementById('pdf-viewer');
+
+            fields.forEach(field => {
+                let element;
+                if (field.type === 'signature') {
+                    element = createSignatureBox();
+                } else if (field.type === 'text') {
+                    element = createTextBox();
+                } else if (field.type === 'date') {
+                    element = createDateBox();
+                }
+
+                element.style.left = field.left;
+                element.style.top = field.top;
+                element.style.width = field.width;
+                element.style.height = field.height;
+
+                pdfViewer.appendChild(element);
+            });
+        }
+
+        function createSignatureBox() {
+            const canvasWrapper = document.createElement('canvas');
+            canvasWrapper.className = 'signature-canvas';
+            return canvasWrapper;
+        }
+
+        function createTextBox() {
+            const textBox = document.createElement('textarea');
+            textBox.className = 'text-box';
+            return textBox;
+        }
+
+        function createDateBox() {
+            const dateInput = document.createElement('input');
+            dateInput.className = 'date-input';
+            dateInput.placeholder = 'select date';
+            flatpickr(dateInput, { dateFormat: "d/m/Y" });
+            return dateInput;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadPDFAndFields(documentId);
+            document.getElementById('capture-all-pages-with-fields-btn').addEventListener('click', captureAllPagesWithFieldsAsJPG); // הוספת האזנה ללחצן
+            document.getElementById('draw-btn').addEventListener('click', enableDrawing);
+            document.getElementById('clear-drawing-btn').addEventListener('click', clearSelectedCanvas);
+        });
+
+        function enableDrawing() {
+            document.querySelectorAll('.signature-canvas').forEach(canvas => {
+                canvas.addEventListener('mousedown', startDrawing);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseleave', stopDrawing);
+            });
+        }
+
+        function startDrawing(event) {
+            isDrawing = true; // הפעלת מצב ציור
+            const context = event.target.getContext('2d');
+            context.beginPath();
+            context.moveTo(event.offsetX, event.offsetY);
+        }
+
+        function draw(event) {
+            if (!isDrawing) return;
+            const context = event.target.getContext('2d');
+            context.lineTo(event.offsetX, event.offsetY);
+            context.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false; // עצור את מצב הציור
+        }
+
+        function clearSelectedCanvas() {
+            const selectedCanvas = document.querySelector('.signature-canvas.selected');
+            if (selectedCanvas) {
+                const context = selectedCanvas.getContext('2d');
+                context.clearRect(0, 0, selectedCanvas.width, selectedCanvas.height);
+            } else {
+                alert('No canvas selected.');
+            }
+        }
+
+        document.addEventListener('click', function (event) {
+            if (event.target.classList.contains('signature-canvas')) {
+                document.querySelectorAll('.signature-canvas').forEach(c => c.classList.remove('selected'));
+                event.target.classList.add('selected');
+            }
+        });
+
+        function captureAllPagesWithFieldsAsJPG() {
+            const numPages = pdfDoc.numPages;
+
+            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                (function(pageNum) {
+                    setTimeout(() => {
+                        renderPage(pageNum); // רינדור של כל עמוד
+                        captureWithFieldsAsJPG(pageNum); // צלם כל עמוד כולל תיבות
+                    }, pageNum * 1000); // מחכה שנייה בין כל לכידה
+                })(pageNum);
+            }
+        }
+
+      function captureWithFieldsAsJPG(pageNum) {
+    const viewer = document.getElementById('pdf-viewer');
+    html2canvas(viewer, {
+        scale: 2,
+        height: viewer.scrollHeight,
+        width: viewer.scrollWidth,
+        useCORS: true
+    }).then(canvas => {
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        const link = document.createElement('a');
+        link.href = imgData;
+        link.download = `captured_page_with_fields_${pageNum}.jpg`;
+        link.click();
+    }).catch(error => {
+        console.error('Error capturing with fields:', error);
+    });
+}
+
+    </script>
+</body>
+</html>

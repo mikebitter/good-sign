@@ -1,0 +1,53 @@
+[
+  {
+    "type": "userEmail",
+    "email": "mike@good-sign.co.il"
+  },
+  {
+    "type": "signature",
+    "left": "43px",
+    "top": "131px",
+    "width": "167px",
+    "height": "88px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_18-37-6.pdf"
+  },
+  {
+    "type": "text",
+    "left": "364px",
+    "top": "133px",
+    "width": "175px",
+    "height": "15px",
+    "pageNumber": "1",
+    "instruction": "Write here",
+    "fileName": "2024-11-25_18-37-6.pdf"
+  },
+  {
+    "type": "date",
+    "left": "641px",
+    "top": "132px",
+    "width": "100px",
+    "height": "30px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_18-37-6.pdf"
+  },
+  {
+    "type": "checkbox",
+    "left": "538px",
+    "top": "256px",
+    "width": "20px",
+    "height": "20px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_18-37-6.pdf"
+  },
+  {
+    "type": "radio",
+    "left": "437px",
+    "top": "257px",
+    "width": "20px",
+    "height": "20px",
+    "pageNumber": "1",
+    "name": "group1",
+    "fileName": "2024-11-25_18-37-6.pdf"
+  }
+]

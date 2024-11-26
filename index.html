@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בחירת קובץ PDF</title>
+</head>
+<body>
+    <h1>בחירת קובץ PDF</h1>
+    <input type="file" id="file-input" accept="application/pdf" />
+    <button id="go-to-sign">עבור לחתימה</button>
+
+    <script>
+        document.getElementById('go-to-sign').addEventListener('click', function() {
+            const fileInput = document.getElementById('file-input');
+            if (fileInput.files.length === 0) {
+                alert('נא לבחור קובץ PDF');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function() {
+                // שמירת תוכן ה-PDF ב-LocalStorage כדי להעבירו לדף החתימה
+                localStorage.setItem('pdfData', reader.result);
+                window.location.href = 'sign.html';
+            };
+
+            reader.readAsDataURL(file); // קריאה כ-Data URL כדי להעביר את ה-PDF לדף החתימה
+        });
+    </script>
+</body>
+</html>

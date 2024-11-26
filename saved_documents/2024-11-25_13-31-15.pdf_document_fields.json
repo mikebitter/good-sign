@@ -1,0 +1,100 @@
+[
+  {
+    "type": "userEmail",
+    "email": "mike@good-sign.co.il"
+  },
+  {
+    "type": "signature",
+    "left": "46px",
+    "top": "132px",
+    "width": "167px",
+    "height": "90px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "signature",
+    "left": "676px",
+    "top": "1208px",
+    "width": "208px",
+    "height": "110px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "signature",
+    "left": "110px",
+    "top": "998px",
+    "width": "184px",
+    "height": "33px",
+    "pageNumber": "2",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "signature",
+    "left": "735px",
+    "top": "1240px",
+    "width": "200px",
+    "height": "100px",
+    "pageNumber": "2",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "text",
+    "left": "214px",
+    "top": "130px",
+    "width": "325px",
+    "height": "20px",
+    "pageNumber": "1",
+    "instruction": "Write here",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "text",
+    "left": "110px",
+    "top": "958px",
+    "width": "145px",
+    "height": "27px",
+    "pageNumber": "2",
+    "instruction": "תפקיד",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "text",
+    "left": "266px",
+    "top": "954px",
+    "width": "145px",
+    "height": "30px",
+    "pageNumber": "2",
+    "instruction": "שם החותם",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "date",
+    "left": "307px",
+    "top": "1005px",
+    "width": "100px",
+    "height": "25px",
+    "pageNumber": "2",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "checkbox",
+    "left": "539px",
+    "top": "254px",
+    "width": "20px",
+    "height": "20px",
+    "pageNumber": "1",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  },
+  {
+    "type": "radio",
+    "left": "173px",
+    "top": "254px",
+    "width": "20px",
+    "height": "20px",
+    "pageNumber": "1",
+    "name": "group1",
+    "fileName": "2024-11-25_13-31-15.pdf"
+  }
+]

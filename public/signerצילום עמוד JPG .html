@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עמוד חתימה</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #controls {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 10px;
+            height: fit-content;
+            margin: 0;
+            width: 15%;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #e6e6e6;
+        }
+
+        #pdf-viewer-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin-top: 0px;
+        }
+
+        #pdf-viewer {
+            position: relative;
+            border: 1px solid #000;
+            width: 79%;
+            height: 96vh;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+            margin-left: 10px;
+            margin-top: 0px;
+        }
+
+        .page-canvas {
+            position: relative;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="capture-page-btn">Capture First Page as JPG</button>
+        <button id="save-jpg-as-pdf-btn">Save JPG as PDF</button>
+    </div>
+
+    <div id="pdf-viewer-container">
+        <div id="pdf-viewer">
+            <!-- כאן נטען את ה-PDF -->
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.4.0/dist/jspdf.umd.min.js"></script>
+    <script>
+        let pdfDoc = null;
+        let documentId = window.location.pathname.split('/').pop();
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+        function loadPDFAndFields(documentId) {
+            fetch(`/saved_documents/${documentId}.pdf`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const pdfData = event.target.result;
+                        displayPDF(pdfData);
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(error => console.error('Error loading PDF:', error));
+        }
+
+        function displayPDF(pdfData) {
+            const loadingTask = pdfjsLib.getDocument({ data: atob(pdfData.split(',')[1]) });
+            loadingTask.promise.then(function(pdf) {
+                pdfDoc = pdf;
+                renderAllPages();
+            });
+        }
+
+        function renderAllPages() {
+            const viewer = document.getElementById('pdf-viewer');
+            viewer.innerHTML = '';
+            renderPage(1); // Render only the first page
+        }
+
+        function renderPage(pageNum) {
+            return pdfDoc.getPage(pageNum).then(function(page) {
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                canvas.className = 'page-canvas';
+
+                page.render({ canvasContext: context, viewport: viewport });
+
+                document.getElementById('pdf-viewer').appendChild(canvas);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadPDFAndFields(documentId);
+            document.getElementById('capture-page-btn').addEventListener('click', captureFirstPageAsJPG);
+            document.getElementById('save-jpg-as-pdf-btn').addEventListener('click', saveJPGAsPDF);
+        });
+
+        function captureFirstPageAsJPG() {
+            const canvas = document.querySelector('.page-canvas');
+            if (canvas) {
+                const imgData = canvas.toDataURL('image/jpeg', 1.0); // תמצב את האיכות ל-1.0
+                const link = document.createElement('a');
+                link.href = imgData;
+                link.download = 'first_page.jpg';
+                link.click();
+            } else {
+                alert('No page rendered to capture.');
+            }
+        }
+
+        function saveJPGAsPDF() {
+            const canvas = document.querySelector('.page-canvas');
+            if (canvas) {
+                const imgData = canvas.toDataURL('image/jpeg', 1.0); // תמצב את האיכות ל-1.0
+
+                const { jsPDF } = window.jspdf;
+                const pdfDoc = new jsPDF();
+
+                // הוסף את התמונה ל-PDF
+                pdfDoc.addImage(imgData, 'JPEG', 0, 0, pdfDoc.internal.pageSize.width, pdfDoc.internal.pageSize.height);
+                pdfDoc.save('first_page.pdf');
+            } else {
+                alert('No page rendered to save as PDF.');
+            }
+        }
+    </script>
+</body>
+</html>

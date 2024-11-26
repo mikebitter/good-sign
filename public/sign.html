@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign PDF</title>
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css">
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <style>
+    /* סגנון בסיסי לעמוד */
+/* עיצוב גוף העמוד */
+body {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #4b6cb7; /* צבע רקע */
+}
+
+/* עיצוב קונטיינר השליטה */
+#controls {
+    position: sticky; /* משאיר את הפאנל קבוע במיקום */
+    top: 10px; /* משנה את הגובה ההתחלתי ל-50 פיקסלים מהחלק העליון */
+    height: 90vh; /* שומר שהגובה יתאים לתוכן */
+    width: 15%; /* שומר על הרוחב */
+    border: 1px solid #ccc; /* מסגרת מסביב לפאנל */
+    background-color: #f9f9f9; /* צבע רקע */
+    border-radius: 10px; /* פינות מעוגלות */
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); /* אפקט צל */
+    padding: 20px; /* ריווח פנימי */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; 
+}
+
+
+/* עיצוב הפאנל הנוסף */
+#additional-panel {
+    border: 1px solid #007bff;
+    padding: 10px;
+    border-radius: 10px;
+    background-color: #f1f1f1;
+    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
+    margin-left: 15px;
+    width: 150px;
+    height: auto;
+    position: relative;
+}
+
+/* עיצוב כפתורים כלליים */
+button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: 1px solid #0056b3;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease, transform 0.2s;
+}
+
+button:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+/* עיצוב כפתורים עם אייקונים */
+button img {
+    width: 24px; /* גודל האייקון */
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* כפתורי הגדלה והקטנה */
+#decrease-height-btn, 
+#increase-height-btn, 
+#increase-width-btn, 
+#decrease-width-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #007bff;
+    border-radius: 8px;
+    border: 1px solid #0056b3;
+    height: 50px; /* גובה הכפתור */
+    width: 50px; /* רוחב הכפתור */
+    margin: 0 5px;
+}
+
+#decrease-height-btn img,
+#increase-height-btn img,
+#increase-width-btn img,
+#decrease-width-btn img {
+    width: 30px; /* גודל האייקון */
+    height: auto;
+}
+
+/* עיצוב viewer של ה-PDF */
+#pdf-viewer-container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+    margin-top: 15px;
+}
+
+#pdf-viewer {
+    position: relative;
+    border: 1px solid #000;
+    width: 79%;
+    height: 96vh;
+    overflow-y: scroll;
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px;
+    margin-top: -5px;
+    background-color: #ffffff;
+}
+
+/* עיצוב Tippy tooltips */
+.tippy-box {
+    display: none !important;
+}
+
+.tippy-arrow {
+    color: #f0f4ff !important; /* חץ כחול בהיר */
+}
+
+#send-document-btn {
+    margin-top: 10px; /* משנה את המרווח העליון */
+}
+
+#additional-panel {
+    border: 1px solid #007bff;
+    padding: 10px;
+    border-radius: 10px;
+    background-color: #f1f1f1;
+    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
+    margin-left: 15px;
+    width: 150px;
+    height: auto;
+    position: relative;
+}
+
+.radio-group-container {
+    margin-top: 15px; /* ריווח עליון */
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* מרווח בין השדה לתווית */
+    font-family: Arial, sans-serif; /* גופן כללי */
+}
+
+.radio-group-label {
+    font-size: 14px; /* גודל הטקסט של התווית */
+    font-weight: bold; /* מודגש */
+    color: #444; /* צבע טקסט */
+}
+
+
+.radio-group-input {
+    width: 100%; /* התאמה לגודל הפנל */
+    padding: 8px; /* ריווח פנימי */
+    border: 1px solid #007bff; /* מסגרת כחולה */
+    border-radius: 5px; /* פינות מעוגלות */
+    font-size: 14px; /* גודל טקסט */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* אפקטים למעבר */
+}
+
+.radio-group-input:focus {
+    border-color: #0056b3; /* צבע מסגרת בזמן מיקוד */
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* אפקט צל */
+    outline: none; /* ביטול קו ברירת מחדל */
+}
+
+
+.email-container {
+    margin-top: 15px; /* ריווח עליון */
+    display: flex;
+    flex-direction: column; /* סידור השדה והתווית אנכית */
+    gap: 8px; /* מרווח בין התווית לשדה */
+    font-family: Arial, sans-serif; /* גופן */
+}
+
+.email-label {
+    font-size: 14px; /* גודל טקסט */
+    font-weight: bold; /* טקסט מודגש */
+    color: #444; /* צבע טקסט */
+}
+
+.email-input {
+    width: 100%; /* התאמה לגודל הפנל */
+    padding: 10px; /* ריווח פנימי */
+    border: 1px solid #007bff; /* מסגרת כחולה */
+    border-radius: 5px; /* פינות מעוגלות */
+    font-size: 14px; /* גודל טקסט */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* אנימציה למעבר */
+}
+
+
+.email-input:focus {
+    border-color: #0056b3; /* צבע המסגרת במצב מיקוד */
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* צל במצב מיקוד */
+    outline: none; /* הסרת קו ברירת מחדל */
+}
+
+
+.resizer {
+    width: 10px;
+    height: 10px;
+    background-color: #4b6cb7; /* צבע הקווים */
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize; /* משנה את סמן העכבר */
+}
+
+.text-box {
+    position: relative;
+    overflow: hidden; /* מבטיח שהקווים יהיו בתוך התיבה */
+}
+
+
+</style>
+
+</head>
+<body>
+  <div id="controls">
+    <button id="open-pdf-btn">Open PDF</button>
+    <button id="create-signature-box-btn">Drag a signature</button>
+    <button id="create-text-box-btn">Drag a text box</button>
+    <button id="create-date-box-btn">Drag a Date box</button>
+    <button id="create-checkbox-btn">Drag a Checkbox</button>
+    <button id="create-radio-btn">Drag a Radio Button</button>
+
+<div class="radio-group-container">
+    <label for="radio-group-name" class="radio-group-label">Radio Group Name:</label>
+<input type="text" id="radio-group-name" placeholder="group1" style="width: 200 px; height: 30px;">
+
+</div>
+
+<div style="display: flex; justify-content: center; gap: 1.5 px; margin-top: 10px;">
+    <button id="decrease-height-btn" title="Reduce the height of the box">
+        <img src="up.png" alt="Up Arrow" style="width: 30px; height: 30px;">
+    </button>
+    <button id="increase-height-btn" title="Increase the height of the box">
+        <img src="down.png" alt="Down Arrow" style="width: 30px; height: 30px;">
+    </button>
+    <button id="increase-width-btn" title="Increase the width of the box">
+        <img src="right.png" alt="Right Arrow" style="width: 30px; height: 30px;">
+    </button>
+    <button id="decrease-width-btn" title="Decrease the width of the box">
+        <img src="left.png" alt="Left Arrow" style="width: 30px; height: 30px;">
+    </button>
+
+
+
+</div>
+
+
+
+<div class="email-container">
+    <label for="recipient-email" class="email-label">Enter the signer's email:</label>
+<input type="email" id="recipient-email" placeholder="Enter the signer's email" required style="width: 200 px; height: 30px;">
+</div>
+
+    <button id="send-document-btn">Send Document</button>
+    <button id="delete-btn">Delete Selected Box</button>
+
+    <!-- כאן נוסיף את שדה ה-input -->
+    <input type="file" id="pdf-input" accept="application/pdf" style="display: none;">
+</div>
+
+
+
+    <div id="pdf-viewer-container">
+        <div id="pdf-viewer">
+            <!-- PDF will be loaded here -->
+        </div>
+       
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="sign.js"></script>
+</body>
+</html>

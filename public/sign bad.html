@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>חתימה על PDF</title>
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css">
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #controls {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 10px;
+            height: fit-content;
+            margin: 0;
+            width: 15%;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #e6e6e6;
+        }
+
+        #pdf-viewer-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        #pdf-viewer {
+            position: relative;
+            border: 1px solid #000;
+            width: 79%;
+            height: 96vh;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+            margin-left: 10px;
+            margin-top: -5px;
+        }
+
+        .signature-canvas, .date-input, .text-box, .checkbox {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 2px solid #007bff; /* גבול כחול */
+            resize: both;  /* אפשרות להגדיל ולהקטין */
+            overflow: auto; /* טיפול בגרירות */
+            border-radius: 0; /* פינות מרובעות */
+        }
+
+        .selected {
+            border: 2px solid red;
+        }
+
+        .resizer {
+            width: 10px;
+            height: 10px;
+            background-color: blue;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            cursor: nwse-resize;
+        }
+
+        .page-canvas {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .page-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="create-signature-box-btn">Create Signature Box</button>
+        <button id="create-text-box-btn">Create Text Box</button>
+        <button id="create-date-box-btn">Create Date Box</button>
+        <button id="create-checkbox-btn">Create Checkbox</button>
+        <button id="create-radio-btn">Create Radio Button</button>
+     <button id="delete-selected-canvas-btn">Delete Selected Canvas</button>
+
+        <label for="radio-group-name">שם קבוצת רדיו:</label>
+        <input type="text" id="radio-group-name" placeholder="group1">
+
+        <button id="delete-btn">Delete Selected Canvas</button>
+        <div style="display: flex; justify-content: space-between;">
+            <button id="increase-height-btn" style="flex: 1;">⬇️</button>
+            <button id="decrease-height-btn" style="flex: 1;">⬆️</button>
+            <button id="increase-width-btn" style="flex: 1;">➡️</button>
+            <button id="decrease-width-btn" style="flex: 1;">⬅️</button>
+        </div>
+        <input type="email" id="recipient-email" placeholder="Enter the signer's email" required>
+        <button id="send-document-btn">Send Document To Sign</button>
+    </div>
+
+    <div id="pdf-viewer-container">
+        <div id="pdf-viewer">
+            <!-- כאן נטען את ה-PDF -->
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="sign.js"></script>
+</body>
+</html>

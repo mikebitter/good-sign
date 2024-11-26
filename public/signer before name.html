@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>חתימה על PDF</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #controls {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 10px;
+            height: fit-content;
+            margin: 0;
+            width: 15%;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #e6e6e6;
+        }
+
+        #pdf-viewer-container {
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        #pdf-viewer {
+            position: relative;
+            border: 1px solid #000;
+            width: 79%;
+            height: 96vh;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+            margin-left: 10px;
+            margin-top: -5px;
+        }
+
+        .signature-canvas, .date-input, .text-box {
+            position: absolute;
+            width: 300px;
+            height: 150px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 2px solid blue;
+            resize: both;
+            overflow: auto;
+            pointer-events: auto; /* וודא שאירועים מופעלים על הקנבס */
+        }
+
+        .selected {
+            border: 2px solid red;
+        }
+
+        .page-canvas {
+            position: relative;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="draw-btn">Draw</button>
+        <button id="clear-drawing-btn">Clear Selected Canvas</button>
+	<button id="save-pdf-btn">Save PDF to Server</button>
+	<button id="save-signed-document-btn">Save Signed Document</button> 	<button id="send-document-btn">Send a document</button>
+	
+<button id="save-signed-document-btn">Save Signed Document</button>
+<input type="text" id="signer-name" placeholder="Enter your name here">
+
+<label for="signer-name">Name of the signer :</label>
+<input type="text" id="signer-name" placeholder="Enter your name here">
+<label for="file-name">File Name:</label>
+<input type="text" id="file-name" placeholder="Enter file name here">
+
+
+</div>
+
+    <div id="pdf-viewer-container">
+        <div id="pdf-viewer"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+        let pdfDoc = null;
+        let documentId = window.location.pathname.split('/').pop();
+        let isDrawing = false;
+        let capturedImages = [];
+        let currentPage = 1;
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+        function loadPDFAndFields(documentId) {
+            fetch(`/saved_documents/${documentId}`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const pdfData = event.target.result;
+                        displayPDF(pdfData);
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(error => console.error('Error loading PDF:', error));
+        }
+
+        function displayPDF(pdfData) {
+            const loadingTask = pdfjsLib.getDocument({ data: atob(pdfData.split(',')[1]) });
+            loadingTask.promise.then(function(pdf) {
+                pdfDoc = pdf;
+                renderAllPages(); // נרנדר את כל העמודים
+                loadFields(documentId); // טען את השדות לאחר הרינדור
+            });
+        }
+
+        function renderAllPages() {
+            const viewer = document.getElementById('pdf-viewer');
+            viewer.innerHTML = ''; 
+
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                renderPage(pageNum); // רינדור של כל עמוד
+            }
+        }
+
+        function renderPage(pageNum) {
+    pdfDoc.getPage(pageNum).then(function(page) {
+        const viewer = document.getElementById('pdf-viewer');
+        const viewport = page.getViewport({ scale: 1.0 });
+
+        const containerWidth = viewer.clientWidth;
+        const scale = containerWidth / viewport.width;
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width * scale;
+        canvas.height = viewport.height * scale;
+        canvas.className = 'page-canvas';
+        canvas.setAttribute('data-page-number', pageNum); // הגדרת מספר העמוד
+
+        const pageWrapper = document.createElement('div');
+        pageWrapper.className = 'page-wrapper';
+        pageWrapper.style.display = 'flex';
+        pageWrapper.style.justifyContent = 'center';
+        pageWrapper.style.position = 'relative';
+        pageWrapper.setAttribute('data-page-number', pageNum); // הגדרת מספר עמוד
+
+        pageWrapper.appendChild(canvas);
+        viewer.appendChild(pageWrapper);
+
+        const renderContext = {
+            canvasContext: context,
+            viewport: page.getViewport({ scale })
+        };
+
+        page.render(renderContext);
+    });
+}
+
+
+        function loadFields(documentId) {
+            fetch(`/saved_documents/${documentId}_document_fields.json`)
+                .then(response => response.json())
+                .then(fields => {
+                    addFieldsToPDF(fields);
+                })
+                .catch(error => console.error('Error loading document fields:', error));
+        }
+
+       function addFieldsToPDF(fields) {
+    const pdfViewer = document.getElementById('pdf-viewer');
+
+fields.forEach(field => {
+    console.log('Field Type:', field.type);
+    console.log('Field Left:', field.left);
+    console.log('Field Top:', field.top);
+    console.log('Field Width:', field.width);
+    console.log('Field Height:', field.height);
+    console.log('Field Page Number:', field.pageNumber);
+ 	let element;
+        if (field.type === 'signature') {
+            element = createSignatureBox();
+        } else if (field.type === 'text') {
+            element = createTextBox();
+        } else if (field.type === 'date') {
+            element = createDateBox();
+        } else if (field.type === 'checkbox') {
+            element = createCheckbox();
+        } else if (field.type === 'radio') {
+            element = createRadioButton(field.name);
+        }
+
+        if (element) {
+            element.style.position = 'absolute';
+            element.style.left = field.left;
+            element.style.top = field.top;
+            element.style.width = field.width || '20px'; 
+            element.style.height = field.height || '20px'; 
+            const pageNumber = field.pageNumber; // מספר העמוד שבו השדה נמצא
+
+            // מציאת העמוד המתאים והוספת השדה
+            const pageWrapper = document.querySelector(`.page-wrapper[data-page-number='${pageNumber}']`);
+            if (pageWrapper) {
+                pageWrapper.appendChild(element); // הוספת השדה לעמוד הנכון
+            } else {
+                console.error(`Page number ${pageNumber} not found for field:`, field);
+            }
+        }
+    });
+
+    console.log("Fields successfully added to the PDF viewer.");
+}
+
+
+
+        function createSignatureBox() {
+            const canvasWrapper = document.createElement('canvas');
+            canvasWrapper.className = 'signature-canvas';
+            canvasWrapper.style.border = '2px solid blue'; // מסגרת כחולה לשדה החתימה
+            enableDrawing(canvasWrapper); // הפעלת אפשרות הציור על קנבס זה
+            return canvasWrapper;
+        }
+
+        function createTextBox() {
+            const textBox = document.createElement('textarea');
+            textBox.className = 'text-box';
+            return textBox;
+        }
+
+        function createDateBox() {
+            const dateInput = document.createElement('input');
+            dateInput.className = 'date-input';
+            dateInput.placeholder = 'select date';
+            flatpickr(dateInput, { dateFormat: "d/m/Y" });
+            return dateInput;
+        }
+function createCheckbox() {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'checkbox';
+    checkbox.style.width = '20px';
+    checkbox.style.height = '20px';
+    return checkbox;
+}
+
+function createRadioButton(radioName) {
+    const radioWrapper = document.createElement('div');
+    radioWrapper.style.position = 'absolute';
+    radioWrapper.style.width = '20px';
+    radioWrapper.style.height = '20px';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = radioName;  // קביעת שם הקבוצה של כפתור הרדיו
+    radio.className = 'radio-button';
+    radio.style.width = '20px';
+    radio.style.height = '20px';
+
+    radioWrapper.appendChild(radio);
+    return radioWrapper;
+}
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadPDFAndFields(documentId);
+   // שליפת ההגדרות משרת
+fetch('/settings')
+    .then(response => response.json())
+    .then(settings => {
+        // הגדרות של מכין המסמך
+        const creatorEmail = settings.creatorEmail;
+
+        // שמירה של המייל שנשלף לשימוש עתידי
+        window.creatorEmail = creatorEmail;
+    })
+    .catch(error => {
+        console.error('Error fetching settings:', error);
+    });
+
+document.getElementById('save-pdf-btn').addEventListener('click', function() {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+
+    // איסוף העמודים
+    const pages = document.querySelectorAll('.page-wrapper');
+    const promises = [];
+
+    pages.forEach((pageWrapper, index) => {
+        html2canvas(pageWrapper, { scale: 3 }).then(canvas => {
+            const imgData = canvas.toDataURL('image/jpeg', 0.8);
+
+            if (index > 0) {
+                pdf.addPage(); // הוספת עמוד חדש עבור כל עמוד נוסף
+            }
+
+            pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297); // קנה מידה של A4
+
+        }).then(() => {
+            if (index === pages.length - 1) {
+                const fileName = `signed_document_${Date.now()}`;
+                const pdfBlob = pdf.output('blob'); // יצירת ה-PDF כ-blob
+
+                // הכנת FormData לשליחת הקובץ
+                const formData = new FormData();
+                formData.append('pdf', pdfBlob, fileName + '.pdf');
+                formData.append('fileName', fileName); 
+
+                // שליחת המסמך לשרת
+                fetch('/saveSignedDocument', {  // שים לב לשינוי פה בנתיב
+                    method: 'POST',
+                    body: formData // שליחת הנתונים כ-FormData ולא כ-JSON
+                })
+                .then(response => response.text())
+                .then(data => {
+                    console.log('Document saved and server response:', data);
+                })
+                .catch(error => {
+                    console.error('Error saving document:', error);
+                });
+            }
+        });
+    });
+});
+ 
+// פונקציה להוספת השדות על הקנבס
+function addFieldsToCanvas(context, pageNumber) {
+    const fields = document.querySelectorAll(`[data-page-number="${pageNumber}"]`);
+
+    fields.forEach(field => {
+        const type = field.className;
+        const left = parseFloat(field.style.left);
+        const top = parseFloat(field.style.top);
+        const width = parseFloat(field.style.width);
+        const height = parseFloat(field.style.height);
+
+        if (type.includes('signature-canvas')) {
+            // העתק חתימה
+            const signatureContext = field.getContext('2d');
+            const signatureData = signatureContext.getImageData(0, 0, width, height);
+            context.putImageData(signatureData, left, top);
+        } else if (type.includes('text-box')) {
+            // העתק טקסט
+            context.font = '16px Arial';
+            context.fillStyle = 'black';
+            context.fillText(field.value, left, top + 16); // טקסט ממוקם נכון
+        } else if (type.includes('checkbox')) {
+            // העתק Checkbox
+            context.strokeRect(left, top, width, height); // צייר את תיבת הסימון
+            if (field.checked) {
+                context.beginPath();
+                context.moveTo(left, top);
+                context.lineTo(left + width, top + height);
+                context.moveTo(left + width, top);
+                context.lineTo(left, top + height);
+                context.stroke();
+            }
+        } else if (type.includes('radio-button')) {
+            // העתק Radio Button
+            context.beginPath();
+            context.arc(left + width / 2, top + height / 2, width / 2, 0, 2 * Math.PI);
+            context.stroke();
+            if (field.querySelector('input').checked) {
+                context.beginPath();
+                context.arc(left + width / 2, top + height / 2, width / 4, 0, 2 * Math.PI);
+                context.fill();
+            }
+        }
+    });
+}
+
+       
+  document.getElementById('draw-btn').addEventListener('click', enableDrawingMode);
+            document.getElementById('clear-drawing-btn').addEventListener('click', clearSelectedCanvas);
+        });
+
+        function enableDrawingMode() {
+            document.querySelectorAll('.signature-canvas').forEach(canvas => {
+                enableDrawing(canvas); // מאפשרים ציור בכל הקנבסים של החתימות
+            });
+        }
+
+function enableDrawing() {
+    document.querySelectorAll('.signature-canvas').forEach(canvas => {
+        canvas.width = canvas.offsetWidth; // התאמת גודל הקנבס לרוחב המלא של הקנבס
+        canvas.height = canvas.offsetHeight; // התאמת גובה הקנבס לגובה המלא של הקנבס
+        const context = canvas.getContext('2d');
+        context.lineWidth = 5; // עובי הקו
+        context.strokeStyle = 'blue'; // צבע הקו
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+    });
+}
+
+function startDrawing(event) {
+    isDrawing = true; // הפעלת מצב ציור
+    const canvas = event.target;
+    const context = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect(); // לקבלת המיקום והגבולות של הקנבס
+    context.beginPath();
+    context.moveTo(event.clientX - rect.left, event.clientY - rect.top); // שימוש בקואורדינטות יחסיות לגבולות הקנבס
+}
+
+function draw(event) {
+    if (!isDrawing) return;
+    const canvas = event.target;
+    const context = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect(); // לקבלת המיקום והגבולות של הקנבס
+    context.lineTo(event.clientX - rect.left, event.clientY - rect.top); // שימוש בקואורדינטות יחסיות לגבולות הקנבס
+    context.stroke();
+}
+
+function stopDrawing() {
+    isDrawing = false; // עצור את מצב הציור
+}
+
+        function clearSelectedCanvas() {
+            const selectedCanvas = document.querySelector('.signature-canvas.selected');
+            if (selectedCanvas) {
+                const context = selectedCanvas.getContext('2d');
+                context.clearRect(0, 0, selectedCanvas.width, selectedCanvas.height);
+            } else {
+                alert('No canvas selected.');
+            }
+        }
+
+        document.addEventListener('click', function (event) {
+            if (event.target.classList.contains('signature-canvas')) {
+                document.querySelectorAll('.signature-canvas').forEach(c => c.classList.remove('selected'));
+                event.target.classList.add('selected');
+            }
+        });
+   
+
+document.getElementById('save-signed-document-btn').addEventListener('click', () => {
+    const fields = [];
+
+    // אוסף את כל השדות (קנבסים, תיבות טקסט וכו')
+    document.querySelectorAll('.signature-canvas, .text-box, .date-input').forEach(element => {
+        const fieldData = {
+            type: element.className,
+            left: element.style.left,
+            top: element.style.top,
+            width: element.style.width,
+            height: element.style.height,
+            pageNumber: element.closest('.page-wrapper').getAttribute('data-page-number')
+        };
+
+        if (element.className.includes('text-box') || element.className.includes('date-input')) {
+            fieldData.value = element.value !== undefined ? element.value : '';
+        }
+
+        fields.push(fieldData);
+    });
+
+    // יצירת שם קובץ לפי תאריך במידה ולא סופק שם
+    let fileName = document.getElementById('file-name').value;
+    if (!fileName) {
+        fileName = `signed_document_${new Date().toISOString().slice(0, 10)}`;
+    }
+
+    // יצירת נתונים לשרת
+    const payload = {
+        pdfData: documentId, // מזהה המסמך כקובץ PDF לשמירה
+        fields: JSON.stringify(fields),
+        fileName: fileName // שם הקובץ הסופי
+    };
+
+    // הוסף כאן את הפקודה להדפסת הנתונים:
+    console.log("Sending payload to server:", payload);
+
+    // שליחת המידע לשרת
+    fetch('/saveSignedDocument', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Document saved successfully:', data);
+    })
+    .catch(error => {
+        console.error('Error saving document:', error);
+    });
+});
+
+// כאן נגמר הסקריפט
+
+ </script>
+</body>
+</html>
