@@ -1,35 +1,38 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-<!-- Trigger redeploy -->
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>בחירת קובץ PDF</title>
+    <title>התחברות</title>
 </head>
 <body>
-    <h1>בחירת קובץ PDF</h1>
-    <input type="file" id="file-input" accept="application/pdf" />
-    <button id="go-to-sign">עבור לחתימה</button>
+    <h1>התחברות</h1>
+    <form id="login-form">
+        <label for="username">שם משתמש:</label>
+        <input type="text" id="username" name="username"><br>
+        
+        <label for="password">סיסמה:</label>
+        <input type="password" id="password" name="password"><br>
+        
+        <label for="email">אימייל:</label>
+        <input type="email" id="email" name="email" value="mike@halsoft.co.il"><br>
+        
+        <button type="submit">התחבר</button>
+    </form>
 
     <script>
-        document.getElementById('go-to-sign').addEventListener('click', function() {
-            const fileInput = document.getElementById('file-input');
-            if (fileInput.files.length === 0) {
-                alert('נא לבחור קובץ PDF');
-                return;
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // מונע את שליחת הטופס הרגילה
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const email = document.getElementById('email').value;
+
+            if (username === 'user' && password === 'password') {
+                alert('התחברות בוצעה בהצלחה!');
+                // כאן תוכל להוסיף הפניה לדף אחר
+            } else {
+                alert('פרטי התחברות שגויים');
             }
-            
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-
-            reader.onload = function() {
-                // שמירת תוכן ה-PDF ב-LocalStorage כדי להעבירו לדף החתימה
-                localStorage.setItem('pdfData', reader.result);
-                window.location.href = 'sign.html';
-            };
-
-            reader.readAsDataURL(file); // קריאה כ-Data URL כדי להעביר את ה-PDF לדף החתימה
         });
     </script>
 </body>
