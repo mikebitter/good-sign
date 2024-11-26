@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>כניסה למערכת</title>
+</head>
+<body>
+    <h1>כניסה למערכת</h1>
+    <form id="loginForm">
+        <label for="username">שם משתמש:</label>
+        <input type="text" id="username" name="username" required>
+        <br>
+        <label for="password">סיסמה:</label>
+        <input type="password" id="password" name="password" required>
+        <br>
+        <label for="email">אימייל:</label>
+        <input type="email" id="email" name="email" required>
+        <br>
+        <button type="submit">התחבר</button>
+    </form>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // מונע את שליחת הטופס לשרת
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const email = document.getElementById('email').value;
+
+            // בדיקת שם משתמש וסיסמה
+            if (username === 'user' && password === 'password') {
+                // שמירת האימייל ב-localStorage
+                localStorage.setItem('userEmail', email);
+
+                // הפניה ל-sign.html
+                window.location.href = 'sign.html';
+            } else {
+                alert('שם משתמש או סיסמה לא נכונים');
+            }
+        });
+    </script>
+</body>
+</html>
